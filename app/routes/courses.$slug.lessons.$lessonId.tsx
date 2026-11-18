@@ -14,8 +14,6 @@ import { isBookmarked, toggleBookmark } from "~/lib/bookmarks.server";
 import { getNote, saveNote } from "~/lib/notes.server";
 import { CommentThread } from "~/components/comment-thread";
 import { db } from "~/db";
-import { quizzes } from "~/db/schema";
-import { eq } from "drizzle-orm";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
 import { Clock, Github } from "lucide-react";
@@ -33,6 +31,7 @@ import {
   editCommentSchema,
   saveNoteSchema,
   deleteCommentSchema,
+  submitQuizSchema,
 } from "~/modules/lesson-page/schemas";
 import { lessonRef, INTENT_CAPABILITY } from "~/modules/lesson-page/intents";
 import {
@@ -47,6 +46,7 @@ import {
   getLastWatchPosition,
   calculateWatchProgress,
   getCommentById,
+  getQuizById,
   getQuizByLessonId,
   getQuizWithQuestions,
   getBestAttempt,
@@ -385,18 +385,19 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   if (intent === "mark-complete") {
-    markLessonComplete(currentUserId, lessonId);
+    markLessonComplete(currentUserId, lessonId, new Date());
     return { success: true };
   }
 
   if (intent === "submit-quiz") {
-    const quizId = Number(formData.get("quizId"));
-    if (isNaN(quizId)) {
+    const parsed = parseFormData(formData, submitQuizSchema);
+    if (!parsed.success) {
       throw data("Invalid quiz ID", { status: 400 });
     }
+    const { quizId } = parsed.data;
     // Scope the quiz to this lesson so a quiz elsewhere can't be reached by
     // posting its id to this route.
-    const quiz = db.select().from(quizzes).where(eq(quizzes.id, quizId)).get();
+    const quiz = getQuizById(quizId);
     if (!quiz || quiz.lessonId !== lessonId) {
       throw data("Quiz not found", { status: 404 });
     }

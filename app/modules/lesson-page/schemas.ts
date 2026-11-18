@@ -28,3 +28,7 @@ export const deleteCommentSchema = z.object({
   intent: z.literal("delete-comment"),
   commentId: z.coerce.number().int(),
 });
+
+export const submitQuizSchema = z.object({
+  quizId: z.coerce.number().int().positive(),
+});
