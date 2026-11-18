@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript", "react", "jsx-a11y", "import", "vitest"],
-  "jsPlugins": ["./lint-rules/sql-raw.js"],
+  "jsPlugins": ["./lint-rules/sql-raw.js", "./lint-rules/standards.js"],
   "categories": {
     "correctness": "error"
   },
@@ -86,9 +86,16 @@
     "import/no-default-export": "error",
     "vitest/no-disabled-tests": "error",
     "vitest/no-focused-tests": "error",
-    "sql/no-dynamic-raw": "error"
+    "sql/no-dynamic-raw": "error",
+    "standards/no-number-from-request": "error"
   },
   "overrides": [
+    {
+      "files": ["app/modules/*/lib/**"],
+      "rules": {
+        "standards/no-ambient-clock": "error"
+      }
+    },
     {
       "files": [
         "app/routes/**",

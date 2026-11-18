@@ -101,6 +101,10 @@ const deleteCommentSchema = z.object({
   commentId: z.coerce.number().int(),
 });
 
+const submitQuizSchema = z.object({
+  quizId: z.coerce.number().int().positive(),
+});
+
 type CommentAuthor = {
   id: number;
   name: string;
@@ -749,14 +753,12 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     ? await renderMarkdown(lesson.content)
     : null;
 
-  // Build prev/next navigation
   const allLessons = flattenCourseLessons(courseWithDetails);
   const currentIndex = allLessons.findIndex((l) => l.id === lessonId);
   const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : null;
   const nextLesson =
     currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null;
 
-  // Check for quiz attached to this lesson
   const quizRecord = getQuizByLessonId(lessonId);
   let quiz: {
     id: number;
@@ -964,10 +966,9 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   if (intent === "submit-quiz") {
-    const quizId = Number(formData.get("quizId"));
-    if (isNaN(quizId)) {
-      throw data("Invalid quiz ID", { status: 400 });
-    }
+    const parsed = parseFormData(formData, submitQuizSchema);
+    if (!parsed.success) throw data("Invalid quiz ID", { status: 400 });
+    const { quizId } = parsed.data;
     // Scope the quiz to this lesson so a quiz elsewhere can't be reached by
     // posting its id to this route.
     const quiz = db.select().from(quizzes).where(eq(quizzes.id, quizId)).get();
@@ -975,7 +976,6 @@ export async function action({ params, request }: Route.ActionArgs) {
       throw data("Quiz not found", { status: 404 });
     }
 
-    // Collect answers: form fields named "question-{questionId}" with value = optionId
     const selectedAnswers: Record<number, number> = {};
     for (const [key, value] of formData.entries()) {
       if (key.startsWith("question-")) {
