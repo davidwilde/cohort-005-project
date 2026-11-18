@@ -6,8 +6,6 @@ ticket out of a queue.
 - /tmp/spec.md: the spec it came from, for context only. Other tickets cover
   the rest of it.
 
-Read CODING_STANDARDS.md.
-
 - Behaviour goes in a deep module under app/modules/, behind an entry point a
   test can call, never inline in a loader.
 - Tests ship in this ticket. End with more passing tests than you started
@@ -19,6 +17,9 @@ Read CODING_STANDARDS.md.
   rejects a commit, fix the work and commit again. The hook stays as it is:
   no `--no-verify`, no edits to `.husky/`, `scripts/pre-commit.sh` or
   `core.hooksPath`.
+- Moving or splitting code is a commit of its own, with no behaviour change,
+  before the commit that needs it. Its message says whether the code moved
+  verbatim or was restructured on the way.
 - Finish with at least one commit and a clean working tree; without one, the
   ticket is parked for a person. The workflow pushes and opens the pull
   request.

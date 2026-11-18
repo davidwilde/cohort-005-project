@@ -1,7 +1,13 @@
 // Fails when a file is too big for an agent to read and edit in one go.
 // Tokens are estimated as bytes / 4, which is close enough for code.
 // Usage: node scripts/check-file-tokens.js <file>...
+//
+// A ratchet, not a wall: a file that was already over the limit at HEAD may be
+// edited as long as it does not grow. Forcing the whole split onto whichever
+// ticket next touches the file buried a three-file UI fix in a 23-file diff
+// (PR #16); the split is its own ticket.
 
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 const MAX_TOKENS = 5000;
@@ -17,26 +23,50 @@ const IGNORED = [
 
 const isBinary = (contents) => contents.subarray(0, 8000).includes(0);
 
-const oversized = process.argv
+const toTokens = (bytes) => Math.ceil(bytes / BYTES_PER_TOKEN);
+
+/** The file's size in tokens at HEAD, or null when HEAD has no such file. */
+const tokensAtHead = (file) => {
+  try {
+    const bytes = execFileSync("git", ["cat-file", "-s", `HEAD:${file}`], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    return toTokens(Number(bytes.trim()));
+  } catch {
+    return null;
+  }
+};
+
+const wasOversized = (before) => before !== null && before > MAX_TOKENS;
+
+const failures = process.argv
   .slice(2)
   .map((file) => file.replaceAll("\\", "/").replace(`${process.cwd()}/`, ""))
   .filter((file) => !IGNORED.some((pattern) => pattern.test(file)))
   .map((file) => ({ file, contents: readFileSync(file) }))
   .filter(({ contents }) => !isBinary(contents))
-  .map(({ file, contents }) => ({
-    file,
-    tokens: Math.ceil(contents.length / BYTES_PER_TOKEN),
-  }))
-  .filter(({ tokens }) => tokens > MAX_TOKENS);
+  .map(({ file, contents }) => ({ file, tokens: toTokens(contents.length) }))
+  .filter(({ tokens }) => tokens > MAX_TOKENS)
+  .map((entry) => ({ ...entry, before: tokensAtHead(entry.file) }))
+  .filter(({ tokens, before }) => !wasOversized(before) || tokens > before);
 
-if (oversized.length > 0) {
+if (failures.length > 0) {
   console.error(`These files are over ${MAX_TOKENS} tokens (bytes / 4):\n`);
-  for (const { file, tokens } of oversized) {
-    console.error(`  ${file}: ~${tokens} tokens`);
+  for (const { file, tokens, before } of failures) {
+    const was = wasOversized(before)
+      ? ` (was ~${before} at HEAD, so this change grows it)`
+      : "";
+    console.error(`  ${file}: ~${tokens} tokens${was}`);
   }
   console.error(`
-Split each file before you commit. Do not delete code or squash it onto fewer
-lines to get under the limit.
+A file that was already over the limit may be edited as long as it does not
+grow. Move the part you are changing into its own file, so the old file ends
+no bigger than it was. Leave the rest of the split to a ticket of its own.
+
+A new file, or one that this change pushed over the limit, must be split before
+you commit. Do not delete code or squash it onto fewer lines to get under the
+limit.
 
 How to split:
 - Find the seams. Look for groups of functions, components, or tests that

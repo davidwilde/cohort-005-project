@@ -16,9 +16,7 @@ component a second path to forget about.
 
 Form data, search parameters and request bodies get a zod schema before the
 values reach any query. Parse once, at the boundary; after that the value has
-a type and you do not check it again. Coerce numbers through the schema, not
-`Number()`: `Number("")` is `0`, and an empty `lessonId` once opened lesson 0
-for every learner.
+a type and you do not check it again.
 
 ## Check permission in the action, not only the loader
 
@@ -32,19 +30,16 @@ Once a module owns a feature's data, the route asks the module for it and
 does not import `~/db` or `drizzle-orm` itself. The instructor analytics
 route gets everything from `instructorAnalytics`. A query in the loader
 splits the feature's rules across two files, and the module's tests stop
-covering what the page shows. `npm run lint:boundaries` enforces this for the
-instructor analytics route only; apply it to every other module by hand. See
-[app/modules/README.md](./app/modules/README.md).
+covering what the page shows. `npm run lint:boundaries` (`routes-no-db`)
+enforces this for every route except the ones listed in the rule, which
+predate it. When a change touches one of those, move the query it touches into
+a module. See [app/modules/README.md](./app/modules/README.md).
 
 ## Arrange tests through the module under test
 
 Test setup calls the module's own functions. When the function you need does
 not exist, add it to the module rather than inserting rows directly, so a
 change to how the module stores its data leaves its tests alone.
-
-## Keep files under 5000 tokens
-
-Keep every file under 5000 tokens.
 
 ## Wrap related writes in a transaction
 
@@ -80,7 +75,8 @@ files and `"Pending"` in one.
 
 A function that calls `Date.now()` cannot be tested at a fixed moment. Take
 the time as an argument. The refund window tests failed every night at
-midnight until we did this.
+midnight until we did this. oxlint enforces this in `app/modules/*/lib/`; apply
+it by hand in `app/lib/`.
 
 ## Keep secrets on the server
 
@@ -113,3 +109,31 @@ Name and extract until a comment is unnecessary. A comment earns its place
 only for a _why_ the code cannot express: a constraint, a decision, a link to
 the ADR behind it. A comment that restates _what_ the code does goes stale the
 first time the code changes.
+
+## Derive client-side validation from the server's schema
+
+A form that disables its button, counts characters or shows an error before
+submitting gets those rules from the zod schema the action parses
+(`schema.safeParse`), or a test pins the two together. A copy of the rules
+drifts, and then the button and the server disagree about what is valid. (The
+note editor restated `saveNoteSchema` by hand in PR #16.)
+
+## Build what the ticket asks for
+
+A ticket about how something looks gets a change to how it looks. Behaviour
+nobody asked for (a counter, a save state, a new label) goes in the pull
+request as a suggestion, or in a ticket of its own. Extra behaviour is extra
+surface to review, test and later remove.
+
+## Ship a move apart from the change that needed it
+
+Moving or splitting code is a commit of its own, with no behaviour change,
+before the commit that uses it. A reviewer checks a move by diffing and a
+change by reading, and cannot do either when the two share a commit. PR #16
+buried a three-file visual fix in a 23-file diff.
+
+## A commit message says what the commit does
+
+If code was restructured as it moved, the message says "moved and
+restructured", not "moved verbatim". The reviewer decides how closely to read
+a commit from its message.
