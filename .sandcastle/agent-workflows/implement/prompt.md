@@ -4,8 +4,6 @@ Your ticket is /tmp/ticket.md: the issue, then comments from people with write
 access, including the explore run's findings. Read those findings before you
 open any code. Build the ticket, and only the ticket.
 
-Read CODING_STANDARDS.md.
-
 - Behaviour goes in a deep module under app/modules/, behind an entry point a
   test can call, never inline in a loader.
 - Ship tests with the code. End with more passing tests than you started
@@ -15,6 +13,9 @@ Read CODING_STANDARDS.md.
   rejects a commit, fix the work and commit again. The hook stays as it is:
   no `--no-verify`, no edits to `.husky/`, `scripts/pre-commit.sh` or
   `core.hooksPath`.
+- Moving or splitting code is a commit of its own, with no behaviour change,
+  before the commit that needs it. Its message says whether the code moved
+  verbatim or was restructured on the way.
 - Finish with at least one commit and a clean working tree. The workflow
   pushes and opens the pull request.
 - Leave `.github/` untouched.
