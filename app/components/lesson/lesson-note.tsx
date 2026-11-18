@@ -15,12 +15,19 @@ export function LessonNote({
   const fetcher = useFetcher<{ ok: boolean; error?: string }>();
   const [body, setBody] = useState(note?.body ?? "");
   const draft = noteDraft(body, note?.body ?? null);
+  const [submitted, setSubmitted] = useState<string | null>(null);
   const isSaving = fetcher.state !== "idle";
-  const error = fetcher.data?.error;
+  // A failed save's error is about the text that was sent; once the box is
+  // edited it no longer applies.
+  const error = body === submitted ? fetcher.data?.error : undefined;
 
   return (
     <LessonPanel icon={NotebookPen} title="Your notes" aside={<PrivateLabel />}>
-      <fetcher.Form method="post" className="space-y-2">
+      <fetcher.Form
+        method="post"
+        className="space-y-2"
+        onSubmit={() => setSubmitted(body)}
+      >
         <input type="hidden" name="intent" value="save-note" />
         <Textarea
           name="body"
